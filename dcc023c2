@@ -28,6 +28,10 @@ for arg in sys.argv[1:]:
       print auxOutput
     HOST = ''
     PORT = port
-    #tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #orig = (HOST, PORT)
+    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    orig = (HOST, PORT)
     #tcp.bind(orig)
+    tcp.listen(1)
+    while True:
+      con, cliente = tcp.accept()
+      con.close()
