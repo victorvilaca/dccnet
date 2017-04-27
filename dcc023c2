@@ -22,13 +22,15 @@ for arg in sys.argv[1:]:
       ip,port=aux.split(":")
     auxInput = sys.argv[3:4]
     auxOutput = sys.argv[4:]
+    defInput = ''.join(auxInput)		#Input definitivo
+    defOutput = ''.join(auxOutput)		#Output definitivo
     HOST = ip
-    PORT = port
-    print HOST, PORT, auxInput, auxOutput
+    PORT = int(port)
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     dest = (HOST, PORT)
     tcp.connect(dest)
-    file = open(auxInput,rb)
+    file = open(defInput,'rb')
+    tcp.close()
     #msg = raw_input()
     #while msg <> '\x18':
       #tcp.send (msg)
@@ -37,15 +39,18 @@ for arg in sys.argv[1:]:
 
   if arg == '-s':
     #print 'Servidor'
+    port = sys.argv[2:3]
     HOST = ''
-    PORT = sys.argv[2:3]
+    PORT = int(''.join(port))
     auxInput = sys.argv[3:4]
     auxOutput = sys.argv[4:]
+    defInput = ''.join(auxInput)		#Input definitivo
+    defOutput = ''.join(auxOutput)		#Output definitivo
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     orig = (HOST, PORT)
-    #tcp.bind(orig)
+    tcp.bind(orig)
     tcp.listen(1)
     while True:
       con, cliente = tcp.accept()
-      file = open(auxInput,rb)
+      file = open(defInput,'rb')
       con.close()
