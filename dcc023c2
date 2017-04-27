@@ -1,15 +1,15 @@
 #!/usr/bin/python
 
 def carry_around_add(a, b):
-    c = a + b
-    return(c &0xffff)+(c >>16)
+  c = a + b
+  return(c &0xffff)+(c >>16)
 
 def checksum(msg):
-    s =0
-    for i in range(0, len(msg),2):
-        w = ord(msg[i])+(ord(msg[i+1])<<8)
-        s = carry_around_add(s, w)
-    return~s &0xffff
+  s =0
+  for i in range(0, len(msg),2):
+    w = ord(msg[i])+(ord(msg[i+1])<<8)
+    s = carry_around_add(s, w)
+  return~s &0xffff
 
 import sys
 import socket
@@ -17,40 +17,35 @@ import socket
 for arg in sys.argv[1:]:
   #print arg
   if arg == '-c':
-    print 'Cliente'
+    #print 'Cliente'
     for aux in sys.argv[2:3]:
       ip,port=aux.split(":")
-      print ip
-      print port
-    for auxInput in sys.argv[3:4]:
-      print auxInput
-    for auxOutput in sys.argv[4:]:
-      print auxOutput
+    auxInput = sys.argv[3:4]
+    auxOutput = sys.argv[4:]
     HOST = ip
     PORT = port
+    print HOST, PORT, auxInput, auxOutput
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     dest = (HOST, PORT)
     tcp.connect(dest)
-    msg = raw_input()
-    while msg <> '\x18':
-      tcp.send (msg)
-      msg = tcp.recv(1024)
-      tcp.close()
+    file = open(auxInput,rb)
+    #msg = raw_input()
+    #while msg <> '\x18':
+      #tcp.send (msg)
+      #msg = tcp.recv(1024)
+      #tcp.close()
 
   if arg == '-s':
-    print 'Servidor'
-    for port in sys.argv[2:3]:
-      print port
-    for auxInput in sys.argv[3:4]:
-      print auxInput
-    for auxOutput in sys.argv[4:]:
-      print auxOutput
+    #print 'Servidor'
     HOST = ''
-    PORT = port
+    PORT = sys.argv[2:3]
+    auxInput = sys.argv[3:4]
+    auxOutput = sys.argv[4:]
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     orig = (HOST, PORT)
     #tcp.bind(orig)
     tcp.listen(1)
     while True:
       con, cliente = tcp.accept()
+      file = open(auxInput,rb)
       con.close()
