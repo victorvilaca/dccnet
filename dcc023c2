@@ -17,6 +17,14 @@ for arg in sys.argv[1:]:
       print auxOutput
     HOST = ip
     PORT = port
+    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    dest = (HOST, PORT)
+    tcp.connect(dest)
+    msg = raw_input()
+    while msg <> '\x18':
+      tcp.send (msg)
+      msg = tcp.recv(1024)
+      tcp.close()
 
   if arg == '-s':
     print 'Servidor'
