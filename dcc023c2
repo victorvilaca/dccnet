@@ -30,7 +30,29 @@ for arg in sys.argv[1:]:
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     dest = (HOST, PORT)
     tcp.connect(dest)
+
+    #Abre o arquivo pra leitura
     file = open(defInput,'rb')
+    #Salva o conteudo do arquivo na variavel pacoteLido
+    pacoteLido = file.read()
+    #Divide o conteudo do arquivo em variaveis diferentes
+    sync = pacoteLido[0:16]
+    print "Sync " + sync
+    checksumMsg = pacoteLido[16:20]
+    print "ChecksumMsg " + checksumMsg
+    length = pacoteLido[20:24]
+    print "Length " + length
+    id = pacoteLido[24:28]
+    print "Id " + id
+    dado = pacoteLido[28:36]
+    print "Dado " + dado
+
+
+    # dcc023c2dcc023c2faef0004000001020304
+
+
+    print file.read()
+
     tcp.close()
     #msg = raw_input()
     #while msg <> '\x18':
