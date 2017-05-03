@@ -1,10 +1,18 @@
 #!/usr/bin/python
 
-#Funcoes Checksum
+import struct
+import sys
+import socket
+
+#limite do tamanho da mensagem
+MAX_TAMANHO = 2
+
+
 def carry_around_add(a, b):
   c = a + b
   return(c &0xffff)+(c >>16)
 
+#Checksum
 def checksum(msg):
   s =0
   for i in range(0, len(msg),2):
@@ -12,8 +20,12 @@ def checksum(msg):
     s = carry_around_add(s, w)
   return~s &0xffff
 
-import sys
-import socket
+def conversaoHEXBYTE(data):
+  data = data.split()
+  data = map(lambda x: int(x,16), data)
+  data = struct.pack("%dB" % len(data), *data)
+  return data
+
 
 for arg in sys.argv[1:]:
   #print arg
@@ -33,32 +45,27 @@ for arg in sys.argv[1:]:
 
     #Abre o arquivo pra leitura
     file = open(defInput,'rb')
-    #Salva o conteudo do arquivo na variavel pacoteLido
-    pacoteLido = file.read()
-    #Divide o conteudo do arquivo em variaveis diferentes
-    sync = pacoteLido[0:16]
-    print "Sync " + sync
-    checksumMsg = pacoteLido[16:20]
-    print "ChecksumMsg " + checksumMsg
-    length = pacoteLido[20:24]
-    print "Length " + length
-    id = pacoteLido[24:28]
-    print "Id " + id
-    dado = pacoteLido[28:36]
-    print "Dado " + dado
+    #Salva o conteudo do arquivo na variavel mensagem, com limite de tamanho
+    mensagem = file.read(MAX_TAMANHO)
+    #criar o cabecalho
+    #tamanho da mensagem em byte
+    #print "Tamanho da mensagem: ", len(mensagem)
+    tamanhoMensagem = struct.pack('>H', len(mensagem))
+    #convertendo SYNC para bytes
+    syncInicial = "dc c0 23 c2"
+    syncFINAL = conversaoHEXBITE(syncInicial)
+    #print "SYNC: ", syncFINAL
+
+    #calcular o checksum
+    valorChecksum = syncFINAL + syncFINAL + conversaoHEXBYTE("00 00") + tamanhoMensagem + conversaoHEXBYTE("00 00")
 
 
     # dcc023c2dcc023c2faef0004000001020304
 
 
-    print file.read()
+    #print file.read()
 
     tcp.close()
-    #msg = raw_input()
-    #while msg <> '\x18':
-      #tcp.send (msg)
-      #msg = tcp.recv(1024)
-      #tcp.close()
 
   if arg == '-s':
     #print 'Servidor'
