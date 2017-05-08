@@ -26,11 +26,30 @@ def conversaoHEXBYTE(data):
   data = struct.pack("%dB" % len(data), *data)
   return data
 
+def criaCabecalho(msg):
+  # criar o cabecalho
+  # tamanho da mensagem em byte
+  tamanhoMensagem = struct.pack('>H', len(msg))
+
+  # convertendo SYNC para bytes
+  syncInicial = "dc c0 23 c2"
+  syncFINAL = conversaoHEXBYTE(syncInicial)
+
+  if(len(msg) > 0):
+    id = conversaoHEXBYTE("00 00")
+  else:
+    id = conversaoHEXBYTE("00 01")
+
+  # calcular o checksum
+  valorChecksum = syncFINAL + syncFINAL + conversaoHEXBYTE("00 00") + tamanhoMensagem + id
+
+  return valorChecksum
+
+
+
 
 for arg in sys.argv[1:]:
-  #print arg
   if arg == '-c':
-    #print 'Cliente'
     for aux in sys.argv[2:3]:
       ip,port=aux.split(":")
     auxInput = sys.argv[3:4]
@@ -45,30 +64,18 @@ for arg in sys.argv[1:]:
 
     #Abre o arquivo pra leitura
     file = open(defInput,'rb')
+
     #Salva o conteudo do arquivo na variavel mensagem, com limite de tamanho
     mensagem = file.read(MAX_TAMANHO)
-    #criar o cabecalho
-    #tamanho da mensagem em byte
-    #print "Tamanho da mensagem: ", len(mensagem)
-    tamanhoMensagem = struct.pack('>H', len(mensagem))
-    #convertendo SYNC para bytes
-    syncInicial = "dc c0 23 c2"
-    syncFINAL = conversaoHEXBITE(syncInicial)
-    #print "SYNC: ", syncFINAL
 
-    #calcular o checksum
-    valorChecksum = syncFINAL + syncFINAL + conversaoHEXBYTE("00 00") + tamanhoMensagem + conversaoHEXBYTE("00 00")
-
-
-    # dcc023c2dcc023c2faef0004000001020304
-
-
-    #print file.read()
-
+    cabecalho = criaCabecalho(mensagem)
+    mensagemFinal = cabecalho + conversaoHEXBYTE(mensagem)
+    tcp.send(mensagemFinal)
+    #tcp.settimeout(1)
+    #tcp.recv()
     tcp.close()
 
   if arg == '-s':
-    #print 'Servidor'
     port = sys.argv[2:3]
     HOST = ''
     PORT = int(''.join(port))
@@ -82,5 +89,11 @@ for arg in sys.argv[1:]:
     tcp.listen(1)
     while True:
       con, cliente = tcp.accept()
-      file = open(defInput,'rb')
+      file = open(defInput,'wb')
+      v = con.recv(1024)
+      conferirChecksum = v[:14]
+      dados = v[14:]
+      file.write(v)
+      print v, "Checksum: ", conferirChecksum, "Dados: ", dados
+
       con.close()
