@@ -78,7 +78,11 @@ for arg in sys.argv[1:]:
         mensagemFinal = cabecalho + mensagem
         tcp.send(mensagemFinal)
         print "Enviando mensagem final."
-  	tcp.shutdown(1)
+        tcp.settimeout(1)
+        confirmacao = tcp.recv(1024)
+        if confirmacao == cabecalho:
+    	  print "Fechando conexao"
+          tcp.shutdown(1)
       else:
         cabecalho = criaCabecalho(mensagem, idDeEnvio, flagEnvio)
         mensagemFinal = cabecalho + mensagem #conversaoHEXBYTE(mensagem)
@@ -120,7 +124,17 @@ for arg in sys.argv[1:]:
       #print c[0]
       #if dados == '':
       if c[0] == '@':				#recebendo flag END
-	con.close()
+        fecharConexao = criaCabecalho('', identificador, flagEND)
+        if (fecharConexao == conferirChecksum and identificador > 0):
+          con.send(criaCabecalho('', 1, flagEND))
+          print "Enviando confirmacao, fechando conexao"
+          identificador = 0
+	  con.close()
+        else:
+          con.send(criaCabecalho('', 0, flagEND))
+          print "Enviando confirmacao, fechando conexao"
+          identificador = 1
+	  con.close()
       cabec0 = criaCabecalho(dados, 1, flagEnvio)		#cabecalho a ser montado com a mensagem recebida
       cabec1 = criaCabecalho(dados, 0, flagEnvio)
       if (cabec0 == conferirChecksum and identificador > 0):		#testando com id do cabecalho = 0 e o ultimo identificador TEM que ser diferente
