@@ -3,15 +3,11 @@
 import struct
 import sys
 import socket
+import thread
 
 #limite do tamanho da mensagem
 MAX_TAMANHO = 2
-#ACK sempre tera size 0
-ack = ''					
-#flags
-flagACK = '80'
-flagEND = '40'
-flagEnvio = '3f'
+
 
 def carry_around_add(a, b):
   c = a + b
@@ -31,28 +27,29 @@ def conversaoHEXBYTE(data):
   data = struct.pack("%dB" % len(data), *data)
   return data
 
-def criaCabecalho(msg, id, flag):
+def criaCabecalho(msg):
   # criar o cabecalho
   # tamanho da mensagem em byte
   tamanhoMensagem = struct.pack('>H', len(msg))
+
   # convertendo SYNC para bytes
   syncInicial = "dc c0 23 c2"
   syncFINAL = conversaoHEXBYTE(syncInicial)
-  if(id > 0):
-    idFinal = conversaoHEXBYTE("00")
-  else:
-    idFinal = conversaoHEXBYTE("01")
-  if flag == flagACK:
-    flagFinal = conversaoHEXBYTE("80")
-  if flag == flagEND:
-    flagFinal = conversaoHEXBYTE("40")
-  else:
-    flagFinal = conversaoHEXBYTE("3f")
-  # calcular o cabecalho
-  valorCabecalho = syncFINAL + syncFINAL + conversaoHEXBYTE("00 00") + tamanhoMensagem + idFinal + flagFinal
-  return valorCabecalho
 
-for arg in sys.argv[1:]:
+  if(len(msg) > 0):
+    id = conversaoHEXBYTE("00 00")
+  else:
+    id = conversaoHEXBYTE("00 01")
+
+  # calcular o checksum
+  valorChecksum = syncFINAL + syncFINAL + conversaoHEXBYTE("00 00") + tamanhoMensagem + id
+
+  return valorChecksum
+
+
+
+
+for arg in sys.argv[1:]
   if arg == '-c':
     for aux in sys.argv[2:3]:
       ip,port=aux.split(":")
@@ -68,37 +65,21 @@ for arg in sys.argv[1:]:
 
     #Abre o arquivo pra leitura
     file = open(defInput,'rb')
-    idDeEnvio = 1		#id global inica com 1 para que o id no cabecalho seja 0
+
     #Salva o conteudo do arquivo na variavel mensagem, com limite de tamanho
-    #tem que fazer o while aqui
-    while 1:
-      mensagem = file.read(MAX_TAMANHO)
-      if not mensagem:
-	cabecalho = criaCabecalho(mensagem, idDeEnvio, flagEND)
-        mensagemFinal = cabecalho + mensagem
-        tcp.send(mensagemFinal)
-        print "Enviando mensagem final."
-        tcp.settimeout(1)
-        confirmacao = tcp.recv(1024)
-        if confirmacao == cabecalho:
-    	  print "Fechando conexao"
-          tcp.shutdown(1)
-      else:
-        cabecalho = criaCabecalho(mensagem, idDeEnvio, flagEnvio)
-        mensagemFinal = cabecalho + mensagem #conversaoHEXBYTE(mensagem)
-        tcp.send(mensagemFinal)
-        print "Enviando mensagem: ", mensagem
-        tcp.settimeout(1)
-        confirmacao = tcp.recv(1024)
-        cabecalhoDeConfirmacao = criaCabecalho(ack, idDeEnvio, flagACK)		
-        if confirmacao == cabecalhoDeConfirmacao:				#SE o cabecalho recebido for ACK
-          #print 'Confirmado!'
-          if idDeEnvio > 0:
-    	    idDeEnvio = 0
-          else:
-            idDeEnvio = 1
-    #fim do while
-    #tcp.close()
+    mensagem = file.read(MAX_TAMANHO)
+
+    cabecalho = criaCabecalho(mensagem)
+    # tcp.send(cabecalho)
+
+    try:
+      # Dentro da funcao abaixo, eh passado como primeiro parametro a funcao que envia. Como segundo parametro,
+      # eh passado todos os parametros da funcao de enviar.
+      thread.start_new_thread(tcp.send, cabecalho)
+    except:
+      print "Erro ao iniciar thread."
+
+    tcp.close()
 
   if arg == '-s':
     port = sys.argv[2:3]
@@ -112,39 +93,12 @@ for arg in sys.argv[1:]:
     orig = (HOST, PORT)
     tcp.bind(orig)
     tcp.listen(1)
-    identificador = 1				#id global inica com 1 para que o id no cabecalho seja 0
-    con, cliente = tcp.accept()
     while True:
-      #con, cliente = tcp.accept()
-      file = open(defInput,'wb')
-      v = con.recv(1024)
-      conferirChecksum = v[:14]			#cabecalho recebido que sera comparado posteriormente
-      dados = v[14:]				#mensagem recebida
-      c = struct.unpack('>s', v[13])
-      #print c[0]
-      #if dados == '':
-      if c[0] == '@':				#recebendo flag END
-        fecharConexao = criaCabecalho('', identificador, flagEND)
-        if (fecharConexao == conferirChecksum and identificador > 0):
-          con.send(criaCabecalho('', 1, flagEND))
-          print "Enviando confirmacao, fechando conexao"
-          identificador = 0
-	  con.close()
-        else:
-          con.send(criaCabecalho('', 0, flagEND))
-          print "Enviando confirmacao, fechando conexao"
-          identificador = 1
-	  con.close()
-      cabec0 = criaCabecalho(dados, 1, flagEnvio)		#cabecalho a ser montado com a mensagem recebida
-      cabec1 = criaCabecalho(dados, 0, flagEnvio)
-      if (cabec0 == conferirChecksum and identificador > 0):		#testando com id do cabecalho = 0 e o ultimo identificador TEM que ser diferente
-        con.send(criaCabecalho(ack, 1, flagACK))			#se for igual,envia ACK
-        file.write(dados)
-        identificador = 0
-        print 'Enviando confirmacao, id = 0'
-      if (cabec1 == conferirChecksum and identificador == 0):		#testando com id do cabecalho = 1 e o ultimo identificador TEM que ser diferente
-        con.send(criaCabecalho(ack, 0, flagACK))			#se for igual,envia ACK
-        file.write(dados)
-        identificador = 1
-        print 'Enviando confirmacao, id = 1'
-      #con.close()
+      con, cliente = tcp.accept()
+      #file = open(defInput,'rb')
+      # Salva o conteudo do arquivo na variavel mensagem, com limite de tamanho
+      #mensagem = file.read(MAX_TAMANHO)
+      con.recv()
+      cabecalho = criaCabecalho(mensagem)
+      tcp.send(cabecalho)
+      con.close()
