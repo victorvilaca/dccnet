@@ -1,4 +1,6 @@
-mport struct
+#!/usr/bin/python
+
+import struct
 import sys
 import socket
 import thread
