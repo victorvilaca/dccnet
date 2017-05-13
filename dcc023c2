@@ -173,3 +173,6 @@ for arg in sys.argv[1:]:
           except:
             print " ERRO "
         # recebeDados("Thread2", defOutput)
+
+
+# FALTA TIRAR OS CON CLOSE...
