@@ -3,7 +3,7 @@
 import struct
 import sys
 import socket
-import thread
+from threading import Thread
 
 # limite do tamanho da mensagem
 MAX_TAMANHO = 2
@@ -58,72 +58,65 @@ def criaCabecalho(msg, id, flag):
     return valorCabecalho
 
 
-def transmiteDados(nomeDaThread, defInput):
+def transmiteDados(nomeDaThread, defInput, tcp):
     # Abre o arquivo pra leitura
     file = open(defInput, 'rb')
-    idDeEnvio = 1  # id global inica com 1 para que o id no cabecalho seja 0
+    idDeEnvio = 1  					# id inica com 1 para que o id no cabecalho seja 0
     # Salva o conteudo do arquivo na variavel mensagem, com limite de tamanho
     while 1:
         mensagem = file.read(MAX_TAMANHO)
-        if not mensagem:
+        if not mensagem:				#se EOF
             cabecalho = criaCabecalho(mensagem, idDeEnvio, flagEND)
             mensagemFinal = cabecalho + mensagem
             tcp.send(mensagemFinal)
             print "Enviando mensagem final."
             tcp.settimeout(1)
             confirmacao = tcp.recv(1024)
-            if confirmacao == cabecalho:
-                #print "Fechando conexao"
+            if confirmacao == cabecalho:		#Acabou o que tinha que ser feito, sai da funcao
                 return
-                #tcp.shutdown(1)
         else:
             cabecalho = criaCabecalho(mensagem, idDeEnvio, flagEnvio)
-            mensagemFinal = cabecalho + mensagem  # conversaoHEXBYTE(mensagem)
+            mensagemFinal = cabecalho + mensagem  
             tcp.send(mensagemFinal)
             print "Enviando mensagem: ", mensagem
             tcp.settimeout(1)
             confirmacao = tcp.recv(1024)
             cabecalhoDeConfirmacao = criaCabecalho(ack, idDeEnvio, flagACK)
-            if confirmacao == cabecalhoDeConfirmacao:  # SE o cabecalho recebido for ACK
-                if idDeEnvio > 0:
+            if confirmacao == cabecalhoDeConfirmacao:  	# SE o cabecalho recebido for ACK
+                if idDeEnvio > 0:			#troca o valor do ID
                     idDeEnvio = 0
                 else:
                     idDeEnvio = 1
 
 
-def recebeDados(nomeThread, defOutput):
-  identificador = 1  # id global inica com 1 para que o id no cabecalho seja 0
+def recebeDados(nomeThread, defOutput, con):
+  print nomeThread
+  identificador = 1  					# id inica com 1 para que o id no cabecalho seja 0
+  file = open(defOutput, 'wb')
   while True:
-        file = open(defOutput, 'wb')
         v = con.recv(1024)
-        conferirChecksum = v[:14]  # cabecalho recebido que sera comparado posteriormente
-        dados = v[14:]  # mensagem recebida
-        #c = struct.unpack('>s', v[13])
+        conferirChecksum = v[:14]  			# cabecalho recebido que sera comparado posteriormente
+        dados = v[14:]  				# mensagem recebida
         fecharConexao = criaCabecalho('', identificador, flagEND)
-        #if c[0] == '@':  # recebendo flag END
-            #fecharConexao = criaCabecalho('', identificador, flagEND)
-        if (fecharConexao == conferirChecksum and identificador > 0):
-          con.send(criaCabecalho('', 1, flagEND))
+        if (fecharConexao == conferirChecksum and identificador > 0):	#verifica se foi enviado um END
+          con.send(criaCabecalho('', 1, flagEND))			#primeiro com o ID = 0
           print "Enviando confirmacao END"
           identificador = 0
           return
-          #con.close()
         if (fecharConexao == conferirChecksum and identificador == 0):        
-        #else:
-          con.send(criaCabecalho('', 0, flagEND))
+          con.send(criaCabecalho('', 0, flagEND))			#depois com o ID = 1
           print "Enviando confirmacao END"
           identificador = 1
           return
-          #con.close()
-        cabec0 = criaCabecalho(dados, 1, flagEnvio)  # cabecalho a ser montado com a mensagem recebida
-        cabec1 = criaCabecalho(dados, 0, flagEnvio)
-        if cabec0 == conferirChecksum and identificador > 0:  # testando com id do cabecalho = 0 e o ultimo identificador TEM que ser diferente
-            con.send(criaCabecalho(ack, 1, flagACK))  # se for igual,envia ACK
+        cabec0 = criaCabecalho(dados, 1, flagEnvio)  		
+        cabec1 = criaCabecalho(dados, 0, flagEnvio)		
+        if cabec0 == conferirChecksum and identificador > 0: 	# testando com id do cabecalho = 0 e o ultimo identificador TEM que ser diferente
+            con.send(criaCabecalho(ack, 1, flagACK))  		# se for igual, envia ACK
             file.write(dados)
             identificador = 0
             print 'Enviando confirmacao, id = 0'
-        if cabec1 == conferirChecksum and identificador == 0:  # testando com id do cabecalho = 1 e o ultimo identificador TEM que ser diferente
-            con.send(criaCabecalho(ack, 0, flagACK))  # se for igual,envia ACK
+        if cabec1 == conferirChecksum and identificador == 0:  	# testando com id do cabecalho = 1 e o ultimo identificador TEM que ser diferente
+            con.send(criaCabecalho(ack, 0, flagACK))  		# se for igual, envia ACK
             file.write(dados)
             identificador = 1
             print 'Enviando confirmacao, id = 1'
@@ -135,24 +128,20 @@ for arg in sys.argv[1:]:
             ip, port = aux.split(":")
         auxInput = sys.argv[3:4]
         auxOutput = sys.argv[4:]
-        defInput = ''.join(auxInput)  # Input definitivo
+        defInput = ''.join(auxInput)  	# Input definitivo
         defOutput = ''.join(auxOutput)  # Output definitivo
         HOST = ip
         PORT = int(port)
         tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         dest = (HOST, PORT)
         tcp.connect(dest)
-        transmiteDados("Thread", defInput)
-
-        #try:
-          #thread.start_new_thread(transmiteDados, ("Thread", defInput))
-        #except:
-          #print "Erro ao iniciar a thread"
-
-        #try:
-          #thread.start_new_thread(recebeDados, ("Thread2", defOutput))
-        #except:
-          #print " ERRO "
+        threadOne = Thread(target = transmiteDados("Thread1", defInput, tcp))
+        threadTwo = Thread(target = recebeDados("Thread2", defOutput, tcp))
+	#inicia a thread para transmitir dados
+        threadOne.start()
+	#inicia a thread para receber dados
+        threadTwo.start()
+	#fecha conexao
         tcp.close()
 
     if arg == '-s':
@@ -161,21 +150,19 @@ for arg in sys.argv[1:]:
         PORT = int(''.join(port))
         auxInput = sys.argv[3:4]
         auxOutput = sys.argv[4:]
-        defInput = ''.join(auxInput)  # Input definitivo
+        defInput = ''.join(auxInput)  	# Input definitivo
         defOutput = ''.join(auxOutput)  # Output definitivo
         tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         orig = (HOST, PORT)
         tcp.bind(orig)
         tcp.listen(1)
         con, cliente = tcp.accept()
+        threadOne = Thread(target = recebeDados("Thread1", defOutput, con))
+        threadTwo = Thread(target = transmiteDados("Thread2", defInput, con))
         while True:
-          #try:
-            #thread.start_new_thread(recebeDados, ("Thread2", defOutput))
-          #except:
-            #print " ERRO "
-          #try:
-            #thread.start_new_thread(transmiteDados, ("Thread", defInput))
-          #except:
-            #print "Erro ao iniciar a thread"
-          recebeDados("Thread2", defOutput)
+	  #inicia a thread para receber dados
+          threadOne.start()
+	  #inicia a thread para transmitir dados
+          threadTwo.start()
+	#fecha conexao
         con.close()
