@@ -6,7 +6,7 @@ import socket
 from threading import Thread
 
 # limite do tamanho da mensagem
-MAX_TAMANHO = 65365
+MAX_TAMANHO = 65535
 # ACK sempre tera size 0
 ack = ''
 # flags
@@ -72,7 +72,7 @@ def transmiteDados(nomeDaThread, defInput, tcp):
             tcp.send(mensagemFinal)
             print "Enviando mensagem final."
             tcp.settimeout(1)
-            confirmacao = tcp.recv(1024)
+            confirmacao = tcp.recv(4096)
             if confirmacao == cabecalho:  # Acabou o que tinha que ser feito, sai da funcao
                 return
 	    if confirmacao != cabecalho:
@@ -84,7 +84,7 @@ def transmiteDados(nomeDaThread, defInput, tcp):
             tcp.send(mensagemFinal)
             print "Enviando mensagem: ", mensagem
             tcp.settimeout(1)
-            confirmacao = tcp.recv(1024)
+            confirmacao = tcp.recv(4096)
             cabecalhoDeConfirmacao = criaCabecalho(ack, idDeEnvio, flagACK)
             if confirmacao == cabecalhoDeConfirmacao:  # SE o cabecalho recebido for ACK
                 if idDeEnvio > 0:  # troca o valor do ID
@@ -101,7 +101,7 @@ def recebeDados(nomeThread, defOutput, con):
     identificador = 1  # id inica com 1 para que o id no cabecalho seja 0
     file = open(defOutput, 'wb')
     while True:
-        v = con.recv(1024)
+        v = con.recv(4096)
         conferirChecksum = v[:14]  # cabecalho recebido que sera comparado posteriormente
         dados = v[14:]  # mensagem recebida
         fecharConexao = criaCabecalho('', identificador, flagEND)
@@ -175,5 +175,4 @@ for arg in sys.argv[1:]:
             threadOne.start()
             # inicia a thread para transmitir dados
             threadTwo.start()
-        print "lol"
         # fecha c
